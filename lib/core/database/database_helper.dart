@@ -8,7 +8,7 @@ import 'package:sqflite/sqflite.dart';
 
 class DatabaseHelper {
   static const String _databaseName = 'life_flow.db';
-  static const int _databaseVersion = 1;
+  static const int _databaseVersion = 2;
 
   // Singleton instance
   DatabaseHelper._internal();
@@ -30,6 +30,7 @@ class DatabaseHelper {
       path,
       version: _databaseVersion,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
       onConfigure: _onConfigure,
     );
   }
@@ -72,9 +73,22 @@ class DatabaseHelper {
         category TEXT NOT NULL,
         date TEXT NOT NULL,
         wishlist_id TEXT,
+        notes TEXT,
         FOREIGN KEY (wishlist_id) REFERENCES wishlists(id) ON DELETE SET NULL
       )
     ''');
+
+    // 9. Budgets — User-defined category limits
+    await db.execute('''
+      CREATE TABLE budgets (
+        category TEXT PRIMARY KEY,
+        target_limit REAL NOT NULL
+      )
+    ''');
+    // Seed initial default budgets
+    await db.execute("INSERT INTO budgets (category, target_limit) VALUES ('Food', 500000.0)");
+    await db.execute("INSERT INTO budgets (category, target_limit) VALUES ('Transport', 500000.0)");
+    await db.execute("INSERT INTO budgets (category, target_limit) VALUES ('Tech', 1000000.0)");
 
     // 4. Project — Groups tasks together
     await db.execute('''
@@ -146,6 +160,26 @@ class DatabaseHelper {
         'CREATE INDEX idx_habit_executions_habit ON habit_executions(habit_id)');
     await db.execute(
         'CREATE INDEX idx_habit_executions_date ON habit_executions(execution_date)');
+  }
+
+  /// Handle database schema migrations
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // 1. Add notes to transactions
+      await db.execute('ALTER TABLE transactions ADD COLUMN notes TEXT');
+      
+      // 2. Create budgets table
+      await db.execute('''
+        CREATE TABLE budgets (
+          category TEXT PRIMARY KEY,
+          target_limit REAL NOT NULL
+        )
+      ''');
+      // Seed default budgets for existing users
+      await db.execute("INSERT INTO budgets (category, target_limit) VALUES ('Food', 500000.0)");
+      await db.execute("INSERT INTO budgets (category, target_limit) VALUES ('Transport', 500000.0)");
+      await db.execute("INSERT INTO budgets (category, target_limit) VALUES ('Tech', 1000000.0)");
+    }
   }
 
   /// Close the database connection. Call on app teardown if needed.

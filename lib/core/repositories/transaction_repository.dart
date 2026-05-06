@@ -118,4 +118,43 @@ class TransactionRepository {
       whereArgs: [id],
     );
   }
+
+  /// Get paginated transactions with optional filtering.
+  Future<List<Transaction>> getPaginated(
+    int limit,
+    int offset, {
+    String filter = 'All',
+  }) async {
+    final db = await _dbHelper.database;
+    
+    String? whereClause;
+    List<Object?>? whereArgs;
+
+    switch (filter) {
+      case 'Income':
+        whereClause = 'type = ?';
+        whereArgs = ['income'];
+        break;
+      case 'Expense':
+        whereClause = 'type = ? AND wishlist_id IS NULL';
+        whereArgs = ['expense'];
+        break;
+      case 'Savings':
+        whereClause = 'wishlist_id IS NOT NULL';
+        break;
+      case 'All':
+      default:
+        break;
+    }
+
+    final maps = await db.query(
+      'transactions',
+      where: whereClause,
+      whereArgs: whereArgs,
+      orderBy: 'date DESC',
+      limit: limit,
+      offset: offset,
+    );
+    return maps.map((m) => Transaction.fromMap(m)).toList();
+  }
 }

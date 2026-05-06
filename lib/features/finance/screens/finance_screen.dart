@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_flow/core/models/transaction.dart';
+import 'package:life_flow/core/providers/budget_provider.dart';
 import 'package:life_flow/core/providers/transaction_provider.dart';
 import 'package:life_flow/core/providers/wishlist_provider.dart';
 import 'package:life_flow/core/theme/app_theme.dart';
 import 'package:life_flow/features/finance/widgets/add_transaction_sheet.dart';
 import 'package:life_flow/features/finance/widgets/add_wishlist_sheet.dart';
 import 'package:life_flow/features/finance/widgets/fund_wishlist_sheet.dart';
+import 'package:life_flow/features/finance/widgets/manage_budgets_sheet.dart';
 
 // =============================================================================
 // FinanceScreen — Income/Expense tracking + Wishlist savings goals (RESTORED UI)
@@ -19,99 +21,124 @@ class FinanceScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 90), // Offset for CustomBottomNavBar
+        child: GestureDetector(
+          onTap: () => _showSheet(context, const AddTransactionSheet()),
+          child: Container(
+            width: 56,
+            height: 56,
+            decoration: const BoxDecoration(
+              color: AppColors.accentIndigo,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.add, color: Colors.white, size: 28),
+          ),
+        ),
+      ),
       body: SafeArea(
         child: CustomScrollView(
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  // ── Header Mobile / Title ──────────────────────────────────
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Finance', style: AppTextStyles.headlineXl),
-                      GestureDetector(
-                        onTap: () => _showSheet(
-                            context, const AddTransactionSheet()),
-                        child: Container(
-                          width: 48,
-                          height: 48,
-                          decoration: const BoxDecoration(
-                            color: AppColors.accentIndigo,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black26,
-                                blurRadius: 10,
-                                offset: Offset(0, 4),
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      // ── Header Mobile / Title ──────────────────────────────────
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Finance', style: AppTextStyles.headlineXl),
+                        ],
+                      ),
+                      const SizedBox(height: 32),
+
+                      // ── Balance Overview Card ──────────────────────────────────
+                      const _BalanceOverviewCard(),
+                      const SizedBox(height: 32),
+
+                      // ── Budget Allocation Section Header ───────────────────────
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Monthly Budgets', style: AppTextStyles.headlineLg),
+                          IconButton(
+                            icon: const Icon(Icons.settings_outlined, color: AppColors.textSecondary),
+                            onPressed: () => _showSheet(context, const ManageBudgetsSheet()),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const _BudgetSection(),
+                      const SizedBox(height: 32),
+
+                      // ── Savings Goals Section ──────────────────────────────────
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Savings Goals', style: AppTextStyles.headlineLg),
+                          GestureDetector(
+                            onTap: () => _showSheet(context, const AddWishlistSheet()),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.accentIndigo.withValues(alpha: 0.12),
+                                shape: BoxShape.circle,
                               ),
-                            ],
+                              child: const Icon(Icons.add, size: 20, color: AppColors.accentIndigo),
+                            ),
                           ),
-                          child: const Icon(Icons.add, color: Colors.white),
-                        ),
+                        ],
                       ),
-                    ],
+                      const SizedBox(height: 16),
+                    ]),
                   ),
-                  const SizedBox(height: 32),
+                ),
 
-                  // ── Balance Overview Card ──────────────────────────────────
-                  const _BalanceOverviewCard(),
-                  const SizedBox(height: 32),
+                // ── Wishlist Grid ────────────────────────────────────────────────
+                const SliverPadding(
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  sliver: _WishlistGridSliver(),
+                ),
 
-                  // ── Budget Allocation Section ──────────────────────────────
-                  Text('Monthly Budgets', style: AppTextStyles.headlineLg),
-                  const SizedBox(height: 16),
-                  const _BudgetSection(),
-                  const SizedBox(height: 32),
-
-                  // ── Savings Goals Section ──────────────────────────────────
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Savings Goals', style: AppTextStyles.headlineLg),
-                      GestureDetector(
-                        onTap: () => _showSheet(context, const AddWishlistSheet()),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.accentIndigo.withValues(alpha: 0.12),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.add, size: 20, color: AppColors.accentIndigo),
-                        ),
-                      ),
-                    ],
+                // ── Recent Transactions Header ───────────────────────────────────
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
+                  sliver: SliverToBoxAdapter(
+                    child: Text('Recent Transactions', style: AppTextStyles.headlineLg),
                   ),
-                  const SizedBox(height: 16),
-                ]),
-              ),
-            ),
+                ),
+                
+                // ── Filter Chips ─────────────────────────────────────────────────
+                const SliverPadding(
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  sliver: SliverToBoxAdapter(
+                    child: _TransactionFilterChips(),
+                  ),
+                ),
 
-            // ── Wishlist Grid ────────────────────────────────────────────────
-            const SliverPadding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              sliver: _WishlistGridSliver(),
-            ),
+                const SliverPadding(
+                  padding: EdgeInsets.only(top: 16),
+                  sliver: SliverToBoxAdapter(child: SizedBox.shrink()),
+                ),
 
-            // ── Recent Transactions Header ───────────────────────────────────
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
-              sliver: SliverToBoxAdapter(
-                child: Text('Recent Transactions', style: AppTextStyles.headlineLg),
-              ),
-            ),
+                // ── Transaction List ─────────────────────────────────────────────
+                const SliverPadding(
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  sliver: _TransactionListSliver(),
+                ),
 
-            // ── Transaction List ─────────────────────────────────────────────
-            const SliverPadding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              sliver: _TransactionListSliver(),
+                // Bottom clearance for nav bar
+                const SliverToBoxAdapter(child: SizedBox(height: 120)),
+              ],
             ),
-
-            // Bottom clearance for nav bar
-            const SliverToBoxAdapter(child: SizedBox(height: 120)),
-          ],
-        ),
       ),
     );
   }
@@ -250,6 +277,7 @@ class _BudgetSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(transactionProvider).valueOrNull;
+    final budgets = ref.watch(budgetProvider).valueOrNull ?? {};
     final txns = state?.transactions ?? [];
 
     double getSpent(String category) {
@@ -258,36 +286,62 @@ class _BudgetSection extends ConsumerWidget {
           .fold(0.0, (sum, t) => sum + t.amount);
     }
 
-    final foodSpent = getSpent('Food');
-    final transportSpent = getSpent('Transport');
-    final techSpent = getSpent('Tech');
+    if (budgets.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceCard,
+          border: Border.all(color: AppColors.borderSubtle),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          'No budget categories yet.\nTap the gear icon to add one.',
+          style: AppTextStyles.bodySm.copyWith(color: AppColors.textSecondary),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
 
     return Column(
-      children: [
-        _BudgetCard(
-          icon: Icons.restaurant,
-          iconColor: AppColors.accentIndigo,
-          category: 'Food',
-          spent: foodSpent > 0 ? foodSpent : 320000,
-          limit: 500000,
-        ),
-        const SizedBox(height: 16),
-        _BudgetCard(
-          icon: Icons.directions_car,
-          iconColor: AppColors.statusWarning,
-          category: 'Transport',
-          spent: transportSpent > 0 ? transportSpent : 450000,
-          limit: 500000,
-        ),
-        const SizedBox(height: 16),
-        _BudgetCard(
-          icon: Icons.devices,
-          iconColor: AppColors.statusDanger,
-          category: 'Tech',
-          spent: techSpent > 0 ? techSpent : 1200000,
-          limit: 1000000,
-        ),
-      ],
+      children: budgets.entries.map((entry) {
+        final cat = entry.key;
+        final limit = entry.value;
+        final spent = getSpent(cat);
+
+        // Assign default icon/color dynamically
+        IconData icon = Icons.account_balance_wallet;
+        Color color = AppColors.accentIndigo;
+        final catLower = cat.toLowerCase();
+
+        if (catLower.contains('food') || catLower.contains('grocer')) {
+          icon = Icons.restaurant;
+          color = AppColors.accentIndigo;
+        } else if (catLower.contains('transport') || catLower.contains('ride')) {
+          icon = Icons.directions_car;
+          color = AppColors.statusWarning;
+        } else if (catLower.contains('tech') || catLower.contains('device')) {
+          icon = Icons.devices;
+          color = AppColors.statusDanger;
+        } else if (catLower.contains('health')) {
+          icon = Icons.favorite;
+          color = AppColors.statusDanger;
+        } else if (catLower.contains('entertainment') || catLower.contains('fun')) {
+          icon = Icons.movie;
+          color = AppColors.accentIndigo;
+        }
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: _BudgetCard(
+            icon: icon,
+            iconColor: color,
+            category: cat,
+            spent: spent,
+            limit: limit,
+          ),
+        );
+      }).toList(),
     );
   }
 }
@@ -525,6 +579,50 @@ class _WishlistCard extends StatelessWidget {
 // Transactions List
 // =============================================================================
 
+class _TransactionFilterChips extends ConsumerWidget {
+  const _TransactionFilterChips();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final filter = ref.watch(transactionProvider).valueOrNull?.currentFilter ?? 'All';
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: ['All', 'Income', 'Expense', 'Savings'].map((f) {
+          final isSelected = filter == f;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () {
+                ref.read(transactionProvider.notifier).setFilter(f);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.accentIndigo.withValues(alpha: 0.15) : AppColors.surfaceVariant,
+                  borderRadius: AppRadius.chipRadius,
+                  border: Border.all(
+                    color: isSelected ? AppColors.accentIndigo : AppColors.borderSubtle,
+                  ),
+                ),
+                child: Text(
+                  f,
+                  style: AppTextStyles.bodySm.copyWith(
+                    color: isSelected ? AppColors.accentIndigo : AppColors.textSecondary,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
 class _TransactionListSliver extends ConsumerWidget {
   const _TransactionListSliver();
 
@@ -537,7 +635,7 @@ class _TransactionListSliver extends ConsumerWidget {
           child: Center(child: CircularProgressIndicator())),
       error: (e, _) => const SliverToBoxAdapter(child: SizedBox.shrink()),
       data: (state) {
-        if (state.transactions.isEmpty) {
+        if (state.recentTransactions.isEmpty) {
           return SliverToBoxAdapter(
             child: Container(
               padding: const EdgeInsets.all(16),
@@ -547,40 +645,52 @@ class _TransactionListSliver extends ConsumerWidget {
                 border: Border.all(color: AppColors.borderSubtle),
               ),
               child: Text(
-                  'No transactions yet. Tap + to add one.',
+                  'No transactions found.',
                   style: AppTextStyles.bodySm.copyWith(color: AppColors.textSecondary),
                   textAlign: TextAlign.center),
             ),
           );
         }
 
-        return SliverToBoxAdapter(
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.surfaceCard,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.borderSubtle),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Column(
-                children: List.generate(
-                  state.transactions.length,
-                  (index) {
-                    final txn = state.transactions[index];
-                    final isLast = index == state.transactions.length - 1;
-                    return _TransactionTile(
-                      txn: txn,
-                      isLast: isLast,
-                      onDelete: () {
-                        ref.read(transactionProvider.notifier).deleteTransaction(txn.id);
-                      },
-                    );
-                  },
+        return SliverList(
+          delegate: SliverChildListDelegate([
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.surfaceCard,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.borderSubtle),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Column(
+                  children: List.generate(
+                    state.recentTransactions.length,
+                    (index) {
+                      final txn = state.recentTransactions[index];
+                      final isLast = index == state.recentTransactions.length - 1;
+                      return _TransactionTile(
+                        txn: txn,
+                        isLast: isLast,
+                        onDelete: () {
+                          ref.read(transactionProvider.notifier).deleteTransaction(txn.id);
+                        },
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
-          ),
+            if (state.hasMoreTransactions)
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: TextButton(
+                  onPressed: () {
+                    ref.read(transactionProvider.notifier).loadMoreTransactions();
+                  },
+                  child: Text('Load More', style: AppTextStyles.bodyMd.copyWith(color: AppColors.accentIndigo)),
+                ),
+              ),
+          ]),
         );
       },
     );
@@ -645,17 +755,29 @@ class _TransactionTile extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(txn.category, style: AppTextStyles.bodySm.copyWith(color: AppColors.textPrimary)),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${txn.date.day}/${txn.date.month}/${txn.date.year}',
-                            style: AppTextStyles.metadata,
-                          ),
-                        ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(txn.category, style: AppTextStyles.bodySm.copyWith(color: AppColors.textPrimary)),
+                            if (txn.notes != null && txn.notes!.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                txn.notes!,
+                                style: AppTextStyles.metadata.copyWith(fontStyle: FontStyle.italic),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                            const SizedBox(height: 2),
+                            Text(
+                              '${txn.date.day}/${txn.date.month}/${txn.date.year}',
+                              style: AppTextStyles.metadata,
+                            ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       Text('$sign Rp $amount',
                           style: AppTextStyles.bodySm.copyWith(
                               color: isIncome ? AppColors.statusSuccess : AppColors.statusDanger,

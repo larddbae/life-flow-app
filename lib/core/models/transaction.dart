@@ -13,6 +13,7 @@ class Transaction {
   final String category;
   final DateTime date;
   final String? wishlistId; // FK → Wishlist(id), nullable
+  final String? notes; // Optional notes/description
 
   const Transaction({
     required this.id,
@@ -21,6 +22,7 @@ class Transaction {
     required this.category,
     required this.date,
     this.wishlistId,
+    this.notes,
   });
 
   Transaction copyWith({
@@ -30,6 +32,7 @@ class Transaction {
     String? category,
     DateTime? date,
     String? wishlistId,
+    String? notes,
   }) {
     return Transaction(
       id: id ?? this.id,
@@ -38,6 +41,7 @@ class Transaction {
       category: category ?? this.category,
       date: date ?? this.date,
       wishlistId: wishlistId ?? this.wishlistId,
+      notes: notes ?? this.notes,
     );
   }
 
@@ -49,6 +53,7 @@ class Transaction {
       'category': category,
       'date': date.toIso8601String(),
       'wishlist_id': wishlistId,
+      'notes': notes,
     };
   }
 
@@ -63,6 +68,7 @@ class Transaction {
       category: map['category'] as String,
       date: DateTime.parse(map['date'] as String),
       wishlistId: map['wishlist_id'] as String?,
+      notes: map['notes'] as String?,
     );
   }
 

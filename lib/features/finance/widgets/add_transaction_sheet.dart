@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_flow/core/models/transaction.dart';
+import 'package:life_flow/core/providers/budget_provider.dart';
 import 'package:life_flow/core/providers/transaction_provider.dart';
 import 'package:life_flow/core/theme/app_theme.dart';
 
@@ -19,29 +20,22 @@ class AddTransactionSheet extends ConsumerStatefulWidget {
 class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
   final _amountController = TextEditingController();
   final _categoryController = TextEditingController();
+  final _notesController = TextEditingController();
   TransactionType _type = TransactionType.expense;
   bool _isSubmitting = false;
-
-  static const _categories = [
-    'Food',
-    'Transport',
-    'Tech',
-    'Entertainment',
-    'Health',
-    'Education',
-    'Other',
-  ];
 
   @override
   void dispose() {
     _amountController.dispose();
     _categoryController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     final amountText = _amountController.text.trim();
     final category = _categoryController.text.trim();
+    final notes = _notesController.text.trim();
     if (amountText.isEmpty || category.isEmpty) return;
 
     final amount = double.tryParse(amountText);
@@ -53,6 +47,7 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
           amount: amount,
           type: _type,
           category: category,
+          notes: notes.isEmpty ? null : notes,
         );
 
     if (mounted) Navigator.of(context).pop();
@@ -120,38 +115,66 @@ class _AddTransactionSheetState extends ConsumerState<AddTransactionSheet> {
           // ── Category Chips ─────────────────────────────────────────
           Text('Category', style: AppTextStyles.metadata),
           const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _categories.map((cat) {
-              final isSelected = _categoryController.text == cat;
-              return GestureDetector(
-                onTap: () => setState(() => _categoryController.text = cat),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.accentIndigo.withValues(alpha: 0.15)
-                        : AppColors.surfaceVariant,
-                    borderRadius: AppRadius.chipRadius,
-                    border: Border.all(
+          Consumer(builder: (context, ref, child) {
+            final budgetsAsync = ref.watch(budgetProvider);
+            final List<String> cats = budgetsAsync.valueOrNull?.keys.toList() ?? [];
+            if (!cats.contains('Other')) {
+              cats.add('Other');
+            }
+            
+            return Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: cats.map((cat) {
+                final isSelected = _categoryController.text == cat;
+                return GestureDetector(
+                  onTap: () => setState(() => _categoryController.text = cat),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
                       color: isSelected
-                          ? AppColors.accentIndigo
-                          : AppColors.borderSubtle,
+                          ? AppColors.accentIndigo.withValues(alpha: 0.15)
+                          : AppColors.surfaceVariant,
+                      borderRadius: AppRadius.chipRadius,
+                      border: Border.all(
+                        color: isSelected
+                            ? AppColors.accentIndigo
+                            : AppColors.borderSubtle,
+                      ),
+                    ),
+                    child: Text(
+                      cat,
+                      style: AppTextStyles.bodySm.copyWith(
+                        color: isSelected
+                            ? AppColors.accentIndigo
+                            : AppColors.textSecondary,
+                      ),
                     ),
                   ),
-                  child: Text(
-                    cat,
-                    style: AppTextStyles.bodySm.copyWith(
-                      color: isSelected
-                          ? AppColors.accentIndigo
-                          : AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
+                );
+              }).toList(),
+            );
+          }),
+          const SizedBox(height: 16),
+
+          // ── Notes ──────────────────────────────────────────────────
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: _categoryController.text == 'Other'
+                  ? Border.all(color: AppColors.accentIndigo, width: 2)
+                  : Border.all(color: Colors.transparent, width: 2),
+            ),
+            child: TextField(
+              controller: _notesController,
+              keyboardType: TextInputType.text,
+              style: AppTextStyles.bodyMd,
+              maxLines: 2,
+              minLines: 1,
+              decoration: _inputDecoration('Notes / Description (Optional)'),
+            ),
           ),
           const SizedBox(height: 24),
 

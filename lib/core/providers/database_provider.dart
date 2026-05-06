@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_flow/core/database/database_helper.dart';
+import 'package:life_flow/core/repositories/budget_repository.dart';
 import 'package:life_flow/core/repositories/daily_log_repository.dart';
 import 'package:life_flow/core/repositories/habit_execution_repository.dart';
 import 'package:life_flow/core/repositories/habit_repository.dart';
@@ -58,4 +59,9 @@ final habitExecutionRepositoryProvider =
 /// Provides [TechSkillRepository] backed by the shared database.
 final techSkillRepositoryProvider = Provider<TechSkillRepository>((ref) {
   return TechSkillRepository(ref.watch(databaseProvider));
+});
+
+/// Provides [BudgetRepository] backed by the shared database.
+final budgetRepositoryProvider = Provider<BudgetRepository>((ref) {
+  return BudgetRepository(ref.watch(databaseProvider));
 });
