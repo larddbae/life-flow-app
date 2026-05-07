@@ -113,3 +113,6 @@ final tasksByStatusProvider =
       status: tasks.where((t) => t.status == status).toList(),
   };
 });
+
+/// Holds the currently selected date for filtering tasks on the Kanban board.
+final taskDateFilterProvider = StateProvider<DateTime?>((ref) => null);

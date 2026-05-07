@@ -7,6 +7,7 @@ import 'package:life_flow/core/providers/project_task_provider.dart';
 import 'package:life_flow/core/theme/app_theme.dart';
 import 'package:life_flow/features/projects/widgets/add_project_sheet.dart';
 import 'package:life_flow/features/projects/widgets/add_task_sheet.dart';
+import 'package:life_flow/features/projects/widgets/edit_task_sheet.dart';
 
 // =============================================================================
 // ProjectBoardScreen — Kanban view of projects and tasks (RESTORED UI)
@@ -32,31 +33,74 @@ class _ProjectBoardScreenState extends ConsumerState<ProjectBoardScreen> {
     }
   }
 
+  Future<void> _pickDateFilter() async {
+    final currentFilter = ref.read(taskDateFilterProvider);
+    final date = await showDatePicker(
+      context: context,
+      initialDate: currentFilter ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: AppColors.accentIndigo,
+              onPrimary: Colors.white,
+              surface: AppColors.surfaceCard,
+              onSurface: AppColors.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (date != null) {
+      ref.read(taskDateFilterProvider.notifier).state = date;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final projectsAsync = ref.watch(projectProvider);
     final tasksByProject = ref.watch(tasksByProjectProvider);
+    final dateFilter = ref.watch(taskDateFilterProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          if (_selectedProjectId != null) {
-            _showSheet(context, AddTaskSheet(projectId: _selectedProjectId!));
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Please select a specific project filter to add a task.', style: AppTextStyles.bodySm),
-                backgroundColor: AppColors.surfaceContainerHighest,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-        },
-        backgroundColor: AppColors.accentIndigo,
-        elevation: 8,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 90), // Offset for CustomBottomNavBar
+        child: GestureDetector(
+          onTap: () {
+            if (_selectedProjectId != null) {
+              _showSheet(context, AddTaskSheet(projectId: _selectedProjectId!));
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Please select a specific project filter to add a task.', style: AppTextStyles.bodySm),
+                  backgroundColor: AppColors.surfaceContainerHighest,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          },
+          child: Container(
+            width: 56,
+            height: 56,
+            decoration: const BoxDecoration(
+              color: AppColors.accentIndigo,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.add, color: Colors.white, size: 28),
+          ),
+        ),
       ),
       body: SafeArea(
         child: Column(
@@ -89,6 +133,44 @@ class _ProjectBoardScreenState extends ConsumerState<ProjectBoardScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     children: [
+                      GestureDetector(
+                        onTap: _pickDateFilter,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceCard,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.borderSubtle),
+                          ),
+                          child: const Icon(Icons.calendar_month, size: 18, color: AppColors.textSecondary),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (dateFilter != null) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.accentIndigo.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: AppColors.accentIndigo.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '${dateFilter.month}/${dateFilter.day}/${dateFilter.year}',
+                                style: AppTextStyles.bodySm.copyWith(color: AppColors.accentIndigo, fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(width: 4),
+                              GestureDetector(
+                                onTap: () => ref.read(taskDateFilterProvider.notifier).state = null,
+                                child: const Icon(Icons.close, size: 14, color: AppColors.accentIndigo),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
                       _FilterPill(
                         title: 'All',
                         isSelected: _selectedProjectId == null,
@@ -123,6 +205,14 @@ class _ProjectBoardScreenState extends ConsumerState<ProjectBoardScreen> {
                     }
                   } else {
                     allTasks = tasksByProject[_selectedProjectId] ?? [];
+                  }
+
+                  if (dateFilter != null) {
+                    allTasks = allTasks.where((t) =>
+                        t.dueDate != null &&
+                        t.dueDate!.year == dateFilter.year &&
+                        t.dueDate!.month == dateFilter.month &&
+                        t.dueDate!.day == dateFilter.day).toList();
                   }
 
                   final Map<String, Project> projectMap = {
@@ -360,15 +450,27 @@ class _TaskCard extends ConsumerWidget {
       }
     }
 
-    return Opacity(
-      opacity: opacity,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surfaceCard,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.borderSubtle),
-        ),
-        clipBehavior: Clip.hardEdge,
+    return GestureDetector(
+      onTap: () {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: AppColors.surfaceCard,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          builder: (_) => EditTaskSheet(task: task),
+        );
+      },
+      child: Opacity(
+        opacity: opacity,
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.surfaceCard,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.borderSubtle),
+          ),
+          clipBehavior: Clip.hardEdge,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -459,8 +561,9 @@ class _TaskCard extends ConsumerWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 // =============================================================================

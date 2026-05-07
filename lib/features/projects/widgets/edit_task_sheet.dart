@@ -5,22 +5,32 @@ import 'package:life_flow/core/providers/project_task_provider.dart';
 import 'package:life_flow/core/theme/app_theme.dart';
 
 // =============================================================================
-// AddTaskSheet — Bottom sheet for adding a task to a project
+// EditTaskSheet — Bottom sheet for editing an existing task
 // =============================================================================
 
-class AddTaskSheet extends ConsumerStatefulWidget {
-  final String projectId;
-  const AddTaskSheet({super.key, required this.projectId});
+class EditTaskSheet extends ConsumerStatefulWidget {
+  final ProjectTask task;
+  const EditTaskSheet({super.key, required this.task});
 
   @override
-  ConsumerState<AddTaskSheet> createState() => _AddTaskSheetState();
+  ConsumerState<EditTaskSheet> createState() => _EditTaskSheetState();
 }
 
-class _AddTaskSheetState extends ConsumerState<AddTaskSheet> {
-  final _titleController = TextEditingController();
-  TaskPriority _priority = TaskPriority.medium;
+class _EditTaskSheetState extends ConsumerState<EditTaskSheet> {
+  late TextEditingController _titleController;
+  late TaskPriority _priority;
+  late TaskStatus _status;
   DateTime? _dueDate;
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.task.title);
+    _priority = widget.task.priority;
+    _status = widget.task.status;
+    _dueDate = widget.task.dueDate;
+  }
 
   @override
   void dispose() {
@@ -34,13 +44,21 @@ class _AddTaskSheetState extends ConsumerState<AddTaskSheet> {
 
     setState(() => _isSubmitting = true);
 
-    await ref.read(projectTaskProvider.notifier).addTask(
-          projectId: widget.projectId,
-          title: title,
-          priority: _priority,
-          dueDate: _dueDate,
-        );
+    final updatedTask = widget.task.copyWith(
+      title: title,
+      priority: _priority,
+      status: _status,
+      dueDate: _dueDate,
+    );
 
+    await ref.read(projectTaskProvider.notifier).updateTask(updatedTask);
+
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _delete() async {
+    setState(() => _isSubmitting = true);
+    await ref.read(projectTaskProvider.notifier).deleteTask(widget.task.id);
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -97,7 +115,7 @@ class _AddTaskSheetState extends ConsumerState<AddTaskSheet> {
             ),
           ),
           const SizedBox(height: 16),
-          Text('New Task', style: AppTextStyles.headlineLg),
+          Text('Edit Task', style: AppTextStyles.headlineLg),
           const SizedBox(height: 20),
 
           TextField(
@@ -105,6 +123,43 @@ class _AddTaskSheetState extends ConsumerState<AddTaskSheet> {
             style: AppTextStyles.bodyMd,
             decoration: _inputDecoration('Task description...'),
             autofocus: true,
+          ),
+          const SizedBox(height: 16),
+
+          Text('Status', style: AppTextStyles.metadata),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<TaskStatus>(
+                value: _status,
+                isExpanded: true,
+                dropdownColor: AppColors.surfaceCard,
+                icon: const Icon(Icons.arrow_drop_down, color: AppColors.textSecondary),
+                style: AppTextStyles.bodyMd.copyWith(color: AppColors.textPrimary),
+                onChanged: (TaskStatus? newValue) {
+                  if (newValue != null) {
+                    setState(() => _status = newValue);
+                  }
+                },
+                items: TaskStatus.values.map<DropdownMenuItem<TaskStatus>>((TaskStatus value) {
+                  final label = switch (value) {
+                    TaskStatus.toDo => 'To-Do',
+                    TaskStatus.inProgress => 'In Progress',
+                    TaskStatus.blocked => 'Blocked',
+                    TaskStatus.done => 'Done',
+                  };
+                  return DropdownMenuItem<TaskStatus>(
+                    value: value,
+                    child: Text(label),
+                  );
+                }).toList(),
+              ),
+            ),
           ),
           const SizedBox(height: 16),
 
@@ -190,8 +245,25 @@ class _AddTaskSheetState extends ConsumerState<AddTaskSheet> {
               child: _isSubmitting
                   ? const SizedBox(width: 20, height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : Text('Add Task', style: AppTextStyles.bodyMd.copyWith(
+                  : Text('Update Task', style: AppTextStyles.bodyMd.copyWith(
                       color: Colors.white, fontWeight: FontWeight.w600)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          
+          // Delete Button
+          SizedBox(
+            width: double.infinity, height: 48,
+            child: TextButton(
+              onPressed: _isSubmitting ? null : _delete,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.statusDanger,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                ),
+              ),
+              child: Text('Delete Task', style: AppTextStyles.bodyMd.copyWith(
+                  color: AppColors.statusDanger, fontWeight: FontWeight.w600)),
             ),
           ),
         ],
