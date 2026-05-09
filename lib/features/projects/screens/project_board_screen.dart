@@ -133,44 +133,6 @@ class _ProjectBoardScreenState extends ConsumerState<ProjectBoardScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     children: [
-                      GestureDetector(
-                        onTap: _pickDateFilter,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceCard,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.borderSubtle),
-                          ),
-                          child: const Icon(Icons.calendar_month, size: 18, color: AppColors.textSecondary),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      if (dateFilter != null) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppColors.accentIndigo.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: AppColors.accentIndigo.withValues(alpha: 0.3)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '${dateFilter.month}/${dateFilter.day}/${dateFilter.year}',
-                                style: AppTextStyles.bodySm.copyWith(color: AppColors.accentIndigo, fontWeight: FontWeight.w600),
-                              ),
-                              const SizedBox(width: 4),
-                              GestureDetector(
-                                onTap: () => ref.read(taskDateFilterProvider.notifier).state = null,
-                                child: const Icon(Icons.close, size: 14, color: AppColors.accentIndigo),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
                       _FilterPill(
                         title: 'All',
                         isSelected: _selectedProjectId == null,
@@ -190,6 +152,22 @@ class _ProjectBoardScreenState extends ConsumerState<ProjectBoardScreen> {
                   ),
                 );
               },
+            ),
+
+            // ── Date Navigator Bar ────────────────────────────────────────────
+            _DateNavigatorBar(
+              dateFilter: dateFilter,
+              onPrevDay: () {
+                final current = ref.read(taskDateFilterProvider) ?? DateTime.now();
+                ref.read(taskDateFilterProvider.notifier).state =
+                    current.subtract(const Duration(days: 1));
+              },
+              onNextDay: () {
+                final current = ref.read(taskDateFilterProvider) ?? DateTime.now();
+                ref.read(taskDateFilterProvider.notifier).state =
+                    current.add(const Duration(days: 1));
+              },
+              onTapCenter: _pickDateFilter,
             ),
 
             const SizedBox(height: 24),
@@ -478,18 +456,32 @@ class _TaskCard extends ConsumerWidget {
             Container(height: 4, width: double.infinity, color: projectColor),
             
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 10, 12, 14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    task.title,
-                    style: AppTextStyles.bodyMd.copyWith(
-                      color: AppColors.textPrimary,
-                      decoration: isDone ? TextDecoration.lineThrough : null,
-                    ),
+                  // Title row with edit icon
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          task.title,
+                          style: AppTextStyles.bodyMd.copyWith(
+                            color: AppColors.textPrimary,
+                            decoration: isDone ? TextDecoration.lineThrough : null,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.edit_outlined,
+                        size: 16,
+                        color: AppColors.textSecondary,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   
                   // Badges
                   Row(
@@ -539,22 +531,6 @@ class _TaskCard extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  
-                  // Send to Today Button
-                  if (!isDone && task.scheduledDate == null) ...[
-                    const SizedBox(height: 16),
-                    GestureDetector(
-                      onTap: () => ref.read(projectTaskProvider.notifier).scheduleForToday(task.id),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('Send to Today', style: AppTextStyles.metadata.copyWith(color: AppColors.accentIndigo)),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.arrow_forward, size: 14, color: AppColors.accentIndigo),
-                        ],
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -564,6 +540,163 @@ class _TaskCard extends ConsumerWidget {
     ),
   );
 }
+}
+
+// =============================================================================
+// Date Navigator Bar
+// =============================================================================
+
+class _DateNavigatorBar extends StatelessWidget {
+  final DateTime? dateFilter;
+  final VoidCallback onPrevDay;
+  final VoidCallback onNextDay;
+  final VoidCallback onTapCenter;
+
+  const _DateNavigatorBar({
+    required this.dateFilter,
+    required this.onPrevDay,
+    required this.onNextDay,
+    required this.onTapCenter,
+  });
+
+  bool get _isToday {
+    if (dateFilter == null) return false;
+    final now = DateTime.now();
+    return dateFilter!.year == now.year &&
+        dateFilter!.month == now.month &&
+        dateFilter!.day == now.day;
+  }
+
+  String get _formattedDate {
+    if (dateFilter == null) {
+      final now = DateTime.now();
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      final days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      return '${days[now.weekday % 7]}, ${months[now.month - 1]} ${now.day}';
+    }
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return '${days[dateFilter!.weekday % 7]}, ${months[dateFilter!.month - 1]} ${dateFilter!.day}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveDate = dateFilter ?? DateTime.now();
+    final prevDay = effectiveDate.subtract(const Duration(days: 1));
+    final nextDay = effectiveDate.add(const Duration(days: 1));
+
+    final monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    final prevLabel = '${monthsShort[prevDay.month - 1]} ${prevDay.day}';
+    final nextLabel = '${monthsShort[nextDay.month - 1]} ${nextDay.day}';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // ── Left: Previous day ──────────────────────────────────────
+          GestureDetector(
+            onTap: onPrevDay,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.chevron_left, size: 18, color: AppColors.textSecondary),
+                  const SizedBox(width: 2),
+                  Text(
+                    prevLabel,
+                    style: AppTextStyles.bodySm.copyWith(color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Center: Date pill ───────────────────────────────────────
+          Expanded(
+            child: GestureDetector(
+              onTap: onTapCenter,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceCard,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: _isToday
+                        ? AppColors.accentIndigo.withValues(alpha: 0.5)
+                        : AppColors.borderSubtle,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_isToday) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.accentIndigo,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'TODAY',
+                          style: AppTextStyles.metadata.copyWith(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Text(
+                      _formattedDate,
+                      style: AppTextStyles.bodySm.copyWith(
+                        color: _isToday ? AppColors.accentIndigo : AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Icon(
+                      Icons.calendar_month_outlined,
+                      size: 14,
+                      color: _isToday ? AppColors.accentIndigo : AppColors.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // ── Right: Next day ─────────────────────────────────────────
+          GestureDetector(
+            onTap: onNextDay,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    nextLabel,
+                    style: AppTextStyles.bodySm.copyWith(color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(width: 2),
+                  const Icon(Icons.chevron_right, size: 18, color: AppColors.textSecondary),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // =============================================================================

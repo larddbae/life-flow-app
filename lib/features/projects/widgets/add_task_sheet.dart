@@ -80,121 +80,123 @@ class _AddTaskSheetState extends ConsumerState<AddTaskSheet> {
 
     return Padding(
       padding: EdgeInsets.only(
-        left: 20, right: 20, top: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.borderSubtle,
-                borderRadius: BorderRadius.circular(2),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.borderSubtle,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Text('New Task', style: AppTextStyles.headlineLg),
-          const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            Text('New Task', style: AppTextStyles.headlineLg),
+            const SizedBox(height: 20),
 
-          TextField(
-            controller: _titleController,
-            style: AppTextStyles.bodyMd,
-            decoration: _inputDecoration('Task description...'),
-            autofocus: true,
-          ),
-          const SizedBox(height: 16),
+            TextField(
+              controller: _titleController,
+              style: AppTextStyles.bodyMd,
+              decoration: _inputDecoration('Task description...'),
+              autofocus: true,
+            ),
+            const SizedBox(height: 16),
 
-          Text('Priority', style: AppTextStyles.metadata),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              _PriorityChip(
-                label: 'High',
-                color: AppColors.statusDanger,
-                isSelected: _priority == TaskPriority.high,
-                onTap: () => setState(() => _priority = TaskPriority.high),
-              ),
-              const SizedBox(width: 8),
-              _PriorityChip(
-                label: 'Med',
-                color: AppColors.tertiary,
-                isSelected: _priority == TaskPriority.medium,
-                onTap: () => setState(() => _priority = TaskPriority.medium),
-              ),
-              const SizedBox(width: 8),
-              _PriorityChip(
-                label: 'Low',
-                color: AppColors.statusSuccess,
-                isSelected: _priority == TaskPriority.low,
-                onTap: () => setState(() => _priority = TaskPriority.low),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          Text('Due Date', style: AppTextStyles.metadata),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: Text(dateText, style: AppTextStyles.bodyMd.copyWith(
-                    color: _dueDate != null ? AppColors.textPrimary : AppColors.textSecondary,
-                  )),
+            Text('Priority', style: AppTextStyles.metadata),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _PriorityChip(
+                  label: 'High',
+                  color: AppColors.statusDanger,
+                  isSelected: _priority == TaskPriority.high,
+                  onTap: () => setState(() => _priority = TaskPriority.high),
                 ),
-              ),
-              const SizedBox(width: 12),
-              InkWell(
-                onTap: _pickDueDate,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppColors.accentIndigo.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: const Icon(Icons.calendar_month, color: AppColors.accentIndigo),
-                ),
-              ),
-              if (_dueDate != null) ...[
                 const SizedBox(width: 8),
-                IconButton(
-                  onPressed: () => setState(() => _dueDate = null),
-                  icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                _PriorityChip(
+                  label: 'Med',
+                  color: AppColors.tertiary,
+                  isSelected: _priority == TaskPriority.medium,
+                  onTap: () => setState(() => _priority = TaskPriority.medium),
+                ),
+                const SizedBox(width: 8),
+                _PriorityChip(
+                  label: 'Low',
+                  color: AppColors.statusSuccess,
+                  isSelected: _priority == TaskPriority.low,
+                  onTap: () => setState(() => _priority = TaskPriority.low),
                 ),
               ],
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          SizedBox(
-            width: double.infinity, height: 48,
-            child: ElevatedButton(
-              onPressed: _isSubmitting ? null : _submit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accentIndigo,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                ),
-              ),
-              child: _isSubmitting
-                  ? const SizedBox(width: 20, height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : Text('Add Task', style: AppTextStyles.bodyMd.copyWith(
-                      color: Colors.white, fontWeight: FontWeight.w600)),
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+
+            Text('Due Date', style: AppTextStyles.metadata),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceVariant,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Text(dateText, style: AppTextStyles.bodyMd.copyWith(
+                      color: _dueDate != null ? AppColors.textPrimary : AppColors.textSecondary,
+                    )),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                InkWell(
+                  onTap: _pickDueDate,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.accentIndigo.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: const Icon(Icons.calendar_month, color: AppColors.accentIndigo),
+                  ),
+                ),
+                if (_dueDate != null) ...[
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: () => setState(() => _dueDate = null),
+                    icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            SizedBox(
+              width: double.infinity, height: 48,
+              child: ElevatedButton(
+                onPressed: _isSubmitting ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accentIndigo,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                  ),
+                ),
+                child: _isSubmitting
+                    ? const SizedBox(width: 20, height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : Text('Add Task', style: AppTextStyles.bodyMd.copyWith(
+                        color: Colors.white, fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
