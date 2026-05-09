@@ -1,13 +1,14 @@
-import 'dart:ui';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_flow/core/providers/daily_log_provider.dart';
-import 'package:life_flow/core/providers/transaction_provider.dart';
+import 'package:life_flow/core/providers/reflection_provider.dart';
 import 'package:life_flow/core/theme/app_theme.dart';
+import 'package:life_flow/features/reflection/widgets/reflection_history_sheet.dart';
 
 // =============================================================================
-// ReflectionScreen — Monthly Insights & Daily Journaling (RESTORED UI)
+// ReflectionScreen — Monthly Insights & Daily Journaling (FULLY WIRED)
 // =============================================================================
 
 class ReflectionScreen extends ConsumerStatefulWidget {
@@ -33,9 +34,12 @@ class _ReflectionScreenState extends ConsumerState<ReflectionScreen> {
     final combined = '${_wellController.text} ||| ${_improveController.text}';
     ref.read(dailyLogProvider.notifier).updateJournal(combined);
     
+    // Invalidate history so it refetches
+    ref.invalidate(reflectionHistoryProvider);
+
     // Unfocus the keyboard
     FocusScope.of(context).unfocus();
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Reflection saved', style: AppTextStyles.bodySm),
@@ -48,7 +52,7 @@ class _ReflectionScreenState extends ConsumerState<ReflectionScreen> {
   @override
   Widget build(BuildContext context) {
     final dailyLogAsync = ref.watch(dailyLogProvider);
-    
+
     if (!_isInitialized && dailyLogAsync.hasValue) {
       final text = dailyLogAsync.value?.journalNotes ?? '';
       final parts = text.split(' ||| ');
@@ -57,9 +61,13 @@ class _ReflectionScreenState extends ConsumerState<ReflectionScreen> {
       _isInitialized = true;
     }
 
-    final now = DateTime.now();
-    final months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    final monthName = '${months[now.month - 1]} ${now.year}';
+    // Month selector state
+    final selectedMonth = ref.watch(reflectionMonthProvider);
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    final monthName = '${months[selectedMonth.month - 1]} ${selectedMonth.year}';
 
     return SafeArea(
       child: CustomScrollView(
@@ -76,11 +84,39 @@ class _ReflectionScreenState extends ConsumerState<ReflectionScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.chevron_left, size: 20, color: AppColors.textSecondary),
+                      GestureDetector(
+                        onTap: () {
+                          final current = ref.read(reflectionMonthProvider);
+                          ref.read(reflectionMonthProvider.notifier).state =
+                              DateTime(current.year, current.month - 1);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceCard,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Icon(Icons.chevron_left, size: 20, color: AppColors.textSecondary),
+                        ),
+                      ),
                       const SizedBox(width: 16),
                       Text(monthName, style: AppTextStyles.bodyMd.copyWith(fontWeight: FontWeight.w500)),
                       const SizedBox(width: 16),
-                      const Icon(Icons.chevron_right, size: 20, color: AppColors.textSecondary),
+                      GestureDetector(
+                        onTap: () {
+                          final current = ref.read(reflectionMonthProvider);
+                          ref.read(reflectionMonthProvider.notifier).state =
+                              DateTime(current.year, current.month + 1);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceCard,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Icon(Icons.chevron_right, size: 20, color: AppColors.textSecondary),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 32),
@@ -114,7 +150,34 @@ class _ReflectionScreenState extends ConsumerState<ReflectionScreen> {
                           children: [
                             const Text('✍️', style: TextStyle(fontSize: 18)),
                             const SizedBox(width: 8),
-                            Text('Qualitative Reflection', style: AppTextStyles.bodyMd.copyWith(fontWeight: FontWeight.w500)),
+                            Expanded(
+                              child: Text('Qualitative Reflection', style: AppTextStyles.bodyMd.copyWith(fontWeight: FontWeight.w500)),
+                            ),
+                            // View History button
+                            GestureDetector(
+                              onTap: () => ReflectionHistorySheet.show(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: AppColors.accentIndigo.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.history, size: 14, color: AppColors.accentIndigo),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'History',
+                                      style: AppTextStyles.metadata.copyWith(
+                                        color: AppColors.accentIndigo,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -143,7 +206,7 @@ class _ReflectionScreenState extends ConsumerState<ReflectionScreen> {
                       child: Text('Save Reflection', style: AppTextStyles.bodyMd.copyWith(fontWeight: FontWeight.w600)),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 120),
                 ],
               ),
@@ -177,7 +240,7 @@ class _ReflectionScreenState extends ConsumerState<ReflectionScreen> {
 }
 
 // =============================================================================
-// Insights Summary Grid
+// Insights Summary Grid — Real data from reflectionMetricsProvider
 // =============================================================================
 
 class _InsightsSummaryGrid extends ConsumerWidget {
@@ -185,22 +248,54 @@ class _InsightsSummaryGrid extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final txnAsync = ref.watch(transactionProvider);
-    final savingsRate = txnAsync.maybeWhen(
-      data: (state) => state.monthlyIncome > 0 
-          ? ((state.monthlyIncome - state.monthlyExpenses) / state.monthlyIncome * 100).clamp(0, 100).round()
-          : 0,
-      orElse: () => 0,
-    );
+    final metricsAsync = ref.watch(reflectionMetricsProvider);
 
-    return Row(
-      children: [
-        Expanded(child: _InsightCard(value: '78%', label: 'of habits completed', valueColor: AppColors.textPrimary)),
-        const SizedBox(width: 12),
-        Expanded(child: _InsightCard(value: '$savingsRate%', label: 'of income saved', valueColor: AppColors.textPrimary)),
-        const SizedBox(width: 12),
-        Expanded(child: _InsightCard(value: '12 days', label: 'longest habit streak', valueColor: AppColors.accentIndigo)),
-      ],
+    return metricsAsync.when(
+      loading: () => Row(
+        children: [
+          Expanded(child: _InsightCard(value: '—', label: 'of habits completed', valueColor: AppColors.textSecondary)),
+          const SizedBox(width: 12),
+          Expanded(child: _InsightCard(value: '—', label: 'of income saved', valueColor: AppColors.textSecondary)),
+          const SizedBox(width: 12),
+          Expanded(child: _InsightCard(value: '—', label: 'longest habit streak', valueColor: AppColors.textSecondary)),
+        ],
+      ),
+      error: (error, stackTrace) => Row(
+        children: [
+          Expanded(child: _InsightCard(value: '!', label: 'error', valueColor: AppColors.error)),
+          const SizedBox(width: 12),
+          Expanded(child: _InsightCard(value: '!', label: 'error', valueColor: AppColors.error)),
+          const SizedBox(width: 12),
+          Expanded(child: _InsightCard(value: '!', label: 'error', valueColor: AppColors.error)),
+        ],
+      ),
+      data: (metrics) => Row(
+        children: [
+          Expanded(
+            child: _InsightCard(
+              value: '${metrics.habitCompletionPct}%',
+              label: 'of habits completed',
+              valueColor: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _InsightCard(
+              value: '${metrics.incomeSavedPct}%',
+              label: 'of income saved',
+              valueColor: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _InsightCard(
+              value: '${metrics.longestStreakDays}d',
+              label: 'longest habit streak',
+              valueColor: AppColors.accentIndigo,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -233,14 +328,16 @@ class _InsightCard extends StatelessWidget {
 }
 
 // =============================================================================
-// Chart Section
+// Chart Section — Real Productivity vs. Energy from reflectionChartDataProvider
 // =============================================================================
 
-class _ChartSection extends StatelessWidget {
+class _ChartSection extends ConsumerWidget {
   const _ChartSection();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final chartAsync = ref.watch(reflectionChartDataProvider);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -259,7 +356,7 @@ class _ChartSection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 24),
-          
+
           // The Chart Area
           Container(
             height: 192,
@@ -269,33 +366,44 @@ class _ChartSection extends StatelessWidget {
                 left: BorderSide(color: AppColors.borderSubtle),
               ),
             ),
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: _ChartPainter(),
-                  ),
+            child: chartAsync.when(
+              loading: () => const Center(
+                child: CircularProgressIndicator(
+                  color: AppColors.accentIndigo,
+                  strokeWidth: 2,
                 ),
-                Positioned(
-                  bottom: -24,
-                  left: 0,
-                  right: 0,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('1', style: AppTextStyles.metadata.copyWith(color: AppColors.textSecondary)),
-                      Text('10', style: AppTextStyles.metadata.copyWith(color: AppColors.textSecondary)),
-                      Text('20', style: AppTextStyles.metadata.copyWith(color: AppColors.textSecondary)),
-                      Text('30', style: AppTextStyles.metadata.copyWith(color: AppColors.textSecondary)),
-                    ],
+              ),
+              error: (error, stackTrace) => Center(
+                child: Text('No data', style: AppTextStyles.metadata),
+              ),
+              data: (data) => Stack(
+                children: [
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _ChartPainter(data: data),
+                    ),
                   ),
-                ),
-              ],
+                  Positioned(
+                    bottom: -24,
+                    left: 0,
+                    right: 0,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('1', style: AppTextStyles.metadata.copyWith(color: AppColors.textSecondary)),
+                        Text('${(data.length * 0.33).round()}', style: AppTextStyles.metadata.copyWith(color: AppColors.textSecondary)),
+                        Text('${(data.length * 0.66).round()}', style: AppTextStyles.metadata.copyWith(color: AppColors.textSecondary)),
+                        Text('${data.length}', style: AppTextStyles.metadata.copyWith(color: AppColors.textSecondary)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          
+
           const SizedBox(height: 32),
-          
+
           // Legend
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -334,37 +442,106 @@ class _ChartSection extends StatelessWidget {
   }
 }
 
+/// Custom painter that draws real productivity & energy lines from [data].
 class _ChartPainter extends CustomPainter {
+  final List<ChartDayData> data;
+
+  _ChartPainter({required this.data});
+
   @override
   void paint(Canvas canvas, Size size) {
-    // Energy Line (Dashed Amber)
-    final energyPath = Path();
-    energyPath.moveTo(0, size.height * 0.6);
-    energyPath.quadraticBezierTo(size.width * 0.1, size.height * 0.4, size.width * 0.2, size.height * 0.5);
-    energyPath.quadraticBezierTo(size.width * 0.4, size.height * 0.3, size.width * 0.6, size.height * 0.7);
-    energyPath.quadraticBezierTo(size.width * 0.8, size.height * 0.2, size.width, size.height * 0.4);
+    if (data.isEmpty) return;
 
-    final energyPaint = Paint()
-      ..color = AppColors.statusWarning
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-      
-    final dashPath = _createDashedPath(energyPath, 4, 4);
-    canvas.drawPath(dashPath, energyPaint);
+    final days = data.length;
 
-    // Productivity Line (Solid Indigo)
-    final prodPath = Path();
-    prodPath.moveTo(0, size.height * 0.8);
-    prodPath.quadraticBezierTo(size.width * 0.15, size.height * 0.7, size.width * 0.25, size.height * 0.3);
-    prodPath.quadraticBezierTo(size.width * 0.45, size.height * 0.5, size.width * 0.65, size.height * 0.2);
-    prodPath.quadraticBezierTo(size.width * 0.85, size.height * 0.6, size.width, size.height * 0.1);
+    // Find max values for normalization
+    final maxTasks = data.map((d) => d.tasksCompleted).reduce(math.max).clamp(1, 999);
+    const maxEnergy = 5; // Fixed scale 1–5
 
-    final prodPaint = Paint()
-      ..color = AppColors.accentIndigo
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
+    // ── Energy Line (Dashed Amber) ────────────────────────────────────────
+    final energyPoints = <Offset>[];
+    for (int i = 0; i < days; i++) {
+      if (data[i].energyLevel > 0) {
+        final x = (i / (days - 1)) * size.width;
+        final y = size.height - (data[i].energyLevel / maxEnergy) * size.height;
+        energyPoints.add(Offset(x, y));
+      }
+    }
 
-    canvas.drawPath(prodPath, prodPaint);
+    if (energyPoints.length >= 2) {
+      final energyPath = _smoothPath(energyPoints);
+      final energyPaint = Paint()
+        ..color = AppColors.statusWarning
+        ..strokeWidth = 1.5
+        ..style = PaintingStyle.stroke;
+      final dashPath = _createDashedPath(energyPath, 4, 4);
+      canvas.drawPath(dashPath, energyPaint);
+
+      // Draw energy dots
+      final dotPaint = Paint()
+        ..color = AppColors.statusWarning
+        ..style = PaintingStyle.fill;
+      for (final pt in energyPoints) {
+        canvas.drawCircle(pt, 2.5, dotPaint);
+      }
+    }
+
+    // ── Productivity Line (Solid Indigo) ──────────────────────────────────
+    final prodPoints = <Offset>[];
+    for (int i = 0; i < days; i++) {
+      final x = (i / (days - 1)) * size.width;
+      final y = size.height - (data[i].tasksCompleted / maxTasks) * size.height;
+      prodPoints.add(Offset(x, y));
+    }
+
+    if (prodPoints.length >= 2) {
+      final prodPath = _smoothPath(prodPoints);
+      final prodPaint = Paint()
+        ..color = AppColors.accentIndigo
+        ..strokeWidth = 2
+        ..style = PaintingStyle.stroke;
+      canvas.drawPath(prodPath, prodPaint);
+
+      // Fill under the curve with a subtle gradient
+      final fillPath = Path.from(prodPath)
+        ..lineTo(size.width, size.height)
+        ..lineTo(0, size.height)
+        ..close();
+
+      final fillPaint = Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppColors.accentIndigo.withValues(alpha: 0.15),
+            AppColors.accentIndigo.withValues(alpha: 0.0),
+          ],
+        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+      canvas.drawPath(fillPath, fillPaint);
+
+      // Draw productivity dots
+      final dotPaint = Paint()
+        ..color = AppColors.accentIndigo
+        ..style = PaintingStyle.fill;
+      for (final pt in prodPoints) {
+        canvas.drawCircle(pt, 2.5, dotPaint);
+      }
+    }
+  }
+
+  /// Creates a smooth bezier path through the given points.
+  Path _smoothPath(List<Offset> points) {
+    final path = Path();
+    path.moveTo(points[0].dx, points[0].dy);
+
+    for (int i = 1; i < points.length; i++) {
+      final prev = points[i - 1];
+      final curr = points[i];
+      final cpX = (prev.dx + curr.dx) / 2;
+      path.cubicTo(cpX, prev.dy, cpX, curr.dy, curr.dx, curr.dy);
+    }
+
+    return path;
   }
 
   Path _createDashedPath(Path source, double dashLength, double dashSpace) {
@@ -385,18 +562,21 @@ class _ChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _ChartPainter oldDelegate) =>
+      oldDelegate.data != data;
 }
 
 // =============================================================================
-// Habit Heatmap Section
+// Habit Heatmap Section — Real data from reflectionHeatmapProvider
 // =============================================================================
 
-class _HabitHeatmapSection extends StatelessWidget {
+class _HabitHeatmapSection extends ConsumerWidget {
   const _HabitHeatmapSection();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final heatmapAsync = ref.watch(reflectionHeatmapProvider);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -415,49 +595,127 @@ class _HabitHeatmapSection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              crossAxisSpacing: 6,
-              mainAxisSpacing: 6,
+
+          heatmapAsync.when(
+            loading: () => const SizedBox(
+              height: 160,
+              child: Center(
+                child: CircularProgressIndicator(color: AppColors.accentIndigo, strokeWidth: 2),
+              ),
             ),
-            itemCount: 35 + 7, // 7 days header + 35 cells
-            itemBuilder: (context, index) {
-              if (index < 7) {
-                final dayLetters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-                return Center(
-                  child: Text(dayLetters[index], style: AppTextStyles.metadata.copyWith(color: AppColors.textSecondary)),
+            error: (error, stackTrace) => SizedBox(
+              height: 160,
+              child: Center(child: Text('Error', style: AppTextStyles.metadata)),
+            ),
+            data: (heatmapData) {
+              if (heatmapData.isEmpty) {
+                return SizedBox(
+                  height: 160,
+                  child: Center(child: Text('No data', style: AppTextStyles.metadata)),
                 );
               }
-              
-              final cellIndex = index - 7;
-              Color cellColor = AppColors.surfaceVariant;
-              
-              if (cellIndex >= 31) {
-                cellColor = Colors.transparent;
-              } else {
-                int mod = cellIndex % 5;
-                if (mod == 0) {
-                  cellColor = const Color(0xFF3A3A3A);
-                } else if (mod == 1) {
-                  cellColor = AppColors.accentIndigo.withValues(alpha: 0.3);
-                } else if (mod == 2) {
-                  cellColor = AppColors.accentIndigo.withValues(alpha: 0.6);
-                } else {
-                  cellColor = AppColors.accentIndigo;
-                }
-              }
 
-              return Container(
-                decoration: BoxDecoration(
-                  color: cellColor,
-                  borderRadius: BorderRadius.circular(4),
+              // Determine the starting weekday offset for the first day
+              final firstDay = heatmapData.first.date;
+              // Monday = 1 (ISO), we want Mon at index 0
+              final startOffset = (firstDay.weekday - 1) % 7;
+              final totalCells = startOffset + heatmapData.length;
+              // Pad to fill complete rows of 7
+              final paddedTotal = ((totalCells + 6) ~/ 7) * 7;
+
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7,
+                  crossAxisSpacing: 6,
+                  mainAxisSpacing: 6,
                 ),
+                itemCount: paddedTotal + 7, // +7 for day headers
+                itemBuilder: (context, index) {
+                  // Day name headers
+                  if (index < 7) {
+                    const dayLetters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+                    return Center(
+                      child: Text(dayLetters[index],
+                          style: AppTextStyles.metadata
+                              .copyWith(color: AppColors.textSecondary)),
+                    );
+                  }
+
+                  final cellIndex = index - 7;
+
+                  // Before the month starts — empty cell
+                  if (cellIndex < startOffset) {
+                    return const SizedBox.shrink();
+                  }
+
+                  // After the month ends — empty cell
+                  final dayIndex = cellIndex - startOffset;
+                  if (dayIndex >= heatmapData.length) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final dayData = heatmapData[dayIndex];
+                  final pct = dayData.completionPct;
+
+                  Color cellColor;
+                  if (pct <= 0) {
+                    cellColor = const Color(0xFF3A3A3A);
+                  } else if (pct < 0.33) {
+                    cellColor = AppColors.accentIndigo.withValues(alpha: 0.25);
+                  } else if (pct < 0.66) {
+                    cellColor = AppColors.accentIndigo.withValues(alpha: 0.5);
+                  } else if (pct < 1.0) {
+                    cellColor = AppColors.accentIndigo.withValues(alpha: 0.75);
+                  } else {
+                    cellColor = AppColors.accentIndigo;
+                  }
+
+                  return Tooltip(
+                    message: '${dayData.date.day}: ${(pct * 100).round()}%',
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: cellColor,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${dayData.date.day}',
+                          style: AppTextStyles.metadata.copyWith(
+                            fontSize: 10,
+                            color: pct > 0.5
+                                ? AppColors.textPrimary
+                                : AppColors.textSecondary.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               );
             },
+          ),
+
+          // Color legend
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('Less ', style: AppTextStyles.metadata.copyWith(fontSize: 10, color: AppColors.textSecondary)),
+              ...[0.0, 0.25, 0.5, 0.75, 1.0].map((pct) => Container(
+                width: 14,
+                height: 14,
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                decoration: BoxDecoration(
+                  color: pct <= 0
+                      ? const Color(0xFF3A3A3A)
+                      : AppColors.accentIndigo.withValues(alpha: pct.clamp(0.25, 1.0)),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              )),
+              Text(' More', style: AppTextStyles.metadata.copyWith(fontSize: 10, color: AppColors.textSecondary)),
+            ],
           ),
         ],
       ),
