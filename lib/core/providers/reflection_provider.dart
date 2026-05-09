@@ -164,6 +164,9 @@ class ChartDayData {
 /// Returns per-day energy levels and task completion counts for the chart.
 final reflectionChartDataProvider =
     FutureProvider<List<ChartDayData>>((ref) async {
+  // Watch for daily log updates so the energy graph instantly reflects taps
+  ref.watch(dailyLogProvider);
+
   final month = ref.watch(reflectionMonthProvider);
   final year = month.year;
   final mon = month.month;

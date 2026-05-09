@@ -20,14 +20,14 @@ import 'package:life_flow/core/theme/app_theme.dart';
 /// )
 /// ```
 class ScheduleTimelineTile extends StatelessWidget {
-  final String time;
+  final String? time;
   final String title;
   final String category;
   final Color accentColor;
 
   const ScheduleTimelineTile({
     super.key,
-    required this.time,
+    this.time,
     required this.title,
     required this.category,
     required this.accentColor,
@@ -60,16 +60,20 @@ class ScheduleTimelineTile extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                // Time label — right-aligned in a fixed-width box
-                SizedBox(
-                  width: 48,
-                  child: Text(
-                    time,
-                    style: AppTextStyles.metadata,
-                    textAlign: TextAlign.right,
+                if (time != null) ...[
+                  // Time label — right-aligned in a fixed-width box
+                  SizedBox(
+                    width: 48,
+                    child: Text(
+                      time!,
+                      style: AppTextStyles.metadata,
+                      textAlign: TextAlign.right,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
+                  const SizedBox(width: 16),
+                ] else ...[
+                  const SizedBox(width: 16),
+                ],
 
                 // Activity title — fills remaining space
                 Expanded(

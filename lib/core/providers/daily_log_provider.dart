@@ -26,10 +26,11 @@ class DailyLogNotifier extends AsyncNotifier<DailyLog?> {
       await repo.update(updated);
       state = AsyncData(updated);
     } else {
+      final now = DateTime.now();
       final newLog = DailyLog(
         id: todayId,
         energyLevel: level,
-        createdAt: DateTime.now(),
+        createdAt: DateTime(now.year, now.month, now.day),
       );
       await repo.insert(newLog);
       state = AsyncData(newLog);
@@ -47,11 +48,12 @@ class DailyLogNotifier extends AsyncNotifier<DailyLog?> {
       await repo.update(updated);
       state = AsyncData(updated);
     } else {
+      final now = DateTime.now();
       final newLog = DailyLog(
         id: todayId,
         energyLevel: 3, // default mid-level
         journalNotes: notes,
-        createdAt: DateTime.now(),
+        createdAt: DateTime(now.year, now.month, now.day),
       );
       await repo.insert(newLog);
       state = AsyncData(newLog);

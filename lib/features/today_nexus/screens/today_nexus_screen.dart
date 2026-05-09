@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:life_flow/core/models/project_task.dart';
+import 'package:life_flow/core/providers/budget_provider.dart';
 import 'package:life_flow/core/providers/daily_log_provider.dart';
 import 'package:life_flow/core/providers/habit_provider.dart';
 import 'package:life_flow/core/providers/project_task_provider.dart';
@@ -81,7 +82,7 @@ class _HeaderSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$greeting, Adel 👋',
+                  '$greeting 👋',
                   style: AppTextStyles.headlineXl,
                 ),
                 const SizedBox(height: 4),
@@ -243,10 +244,13 @@ class _TaskTile extends StatelessWidget {
       TaskPriority.low => AppColors.statusSuccess,
     };
 
+    final hasSpecificTime = task.dueDate != null &&
+        (task.dueDate!.hour != 0 || task.dueDate!.minute != 0);
+
     return ScheduleTimelineTile(
-      time: task.dueDate != null
+      time: hasSpecificTime
           ? '${task.dueDate!.hour.toString().padLeft(2, '0')}:${task.dueDate!.minute.toString().padLeft(2, '0')}'
-          : '──',
+          : null,
       title: task.title,
       category: task.priority.name.toUpperCase(),
       accentColor: priorityColor,
@@ -327,30 +331,43 @@ class _LiveFinancialGlance extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final txnAsync = ref.watch(transactionProvider);
 
-    return txnAsync.when(
-      loading: () => const FinancialGlanceCard(
+    if (txnAsync.isLoading) {
+      return const FinancialGlanceCard(
         label: 'Daily Budget Remaining',
         amount: '...',
         progress: 0,
-      ),
-      error: (e, _) => const FinancialGlanceCard(
+      );
+    }
+
+    if (txnAsync.hasError) {
+      return const FinancialGlanceCard(
         label: 'Daily Budget Remaining',
         amount: 'Error',
         progress: 0,
-      ),
-      data: (txnState) {
-        // Default daily budget — can be made configurable later
-        const dailyBudget = 100000.0;
-        final remaining = dailyBudget - txnState.todayExpenses;
-        final progress =
-            dailyBudget > 0 ? txnState.todayExpenses / dailyBudget : 0.0;
+      );
+    }
 
-        return FinancialGlanceCard(
-          label: 'Daily Budget Remaining',
-          amount: _formatCurrency(remaining),
-          progress: progress,
-        );
-      },
+    final txnState = txnAsync.value!;
+
+    final monthlyBalance = txnState.monthlyBalance;
+
+    final now = DateTime.now();
+    int daysRemaining = DateUtils.getDaysInMonth(now.year, now.month) - now.day;
+    if (daysRemaining <= 0) daysRemaining = 1; // prevent division by zero
+
+    double safeToSpendToday = 0;
+    if (monthlyBalance > 0) {
+      safeToSpendToday = monthlyBalance / daysRemaining;
+    }
+    
+    // Progress calculation for today's spending relative to today's safe limit
+    final dailyLimit = safeToSpendToday + txnState.todayExpenses;
+    final progress = dailyLimit > 0 ? txnState.todayExpenses / dailyLimit : 0.0;
+
+    return FinancialGlanceCard(
+      label: 'Daily Budget Remaining',
+      amount: _formatCurrency(safeToSpendToday),
+      progress: progress,
     );
   }
 
