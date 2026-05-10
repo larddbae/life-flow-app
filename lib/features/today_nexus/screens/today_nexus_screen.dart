@@ -73,44 +73,18 @@ class _HeaderSection extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Greeting + Date
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$greeting 👋',
-                  style: AppTextStyles.headlineXl,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _getFormattedDate(),
-                  style: AppTextStyles.bodySm.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
+          Text(
+            greeting,
+            style: AppTextStyles.headlineXl,
           ),
-
-          // Avatar
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.surfaceCard,
-              border: Border.all(color: AppColors.borderSubtle, width: 1),
-            ),
-            child: const ClipOval(
-              child: Icon(
-                Icons.person,
-                color: AppColors.textSecondary,
-                size: 24,
-              ),
+          const SizedBox(height: 4),
+          Text(
+            _getFormattedDate(),
+            style: AppTextStyles.bodySm.copyWith(
+              color: AppColors.textSecondary,
             ),
           ),
         ],
