@@ -38,7 +38,7 @@
 
 ## 📸 Screenshots
 
-> Replace the placeholders below with your actual app screenshots.
+> Coming Soon.
 
 <table align="center">
   <tr>
